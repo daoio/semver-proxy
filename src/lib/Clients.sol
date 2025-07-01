@@ -3,7 +3,11 @@ pragma solidity ^0.8.28;
 
 type Client is address;
 
-/// @notice Defines methods for clients.
+/**
+ * @notice Library that defines methods for Client's interactions with the proxy.
+ *         That is, allows to "subscribe" to specific versions of the implementation
+ *         and "unsubscribe" from them.
+ */
 library Clients {
     error ClientIsntSubscribed();
 
@@ -16,7 +20,10 @@ library Clients {
         return release != address(0) ? (true, release) : (false, address(0));
     }
 
-    /// @notice TODO: describe
+    /**
+     * @notice Store {release} value for a {client} key
+     *         inside {subscribedClients} storage map.
+     */
     function subscribe(
         mapping(Client => address) storage subscribedClients,
         Client client,
@@ -25,7 +32,10 @@ library Clients {
         subscribedClients[client] = release;
     }
 
-    /// @notice TODO: describe
+    /**
+     * @notice Remove {release} value for a {client} key
+     *         inside {subscribedClients} storage map.
+     */
     function unsubscribe(
         mapping(Client => address) storage subscribedClients,
         Client client

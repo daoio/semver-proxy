@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 import {Version, EncodedVersion} from "../lib/Versioning.sol";
-import {Client} from "../lib/Clients.sol";
 
 interface ISemVerProxy {
     function latestVersion() external view returns(Version memory);
