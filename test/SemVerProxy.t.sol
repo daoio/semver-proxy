@@ -4,6 +4,7 @@ import {ProxyAdmin} from "openzeppelin-contracts/contracts/proxy/transparent/Tra
 import {Versioning, Version, EncodedVersion} from "../src/lib/Versioning.sol";
 import {ISemVerProxy} from "../src/interfaces/ISemVerProxy.sol";
 import {X, Y, Z} from "./mocks/VersionedContract.sol";
+import {Breaking} from "./mocks/BreakingContract.sol";
 import {SemVerProxy} from "../src/SemVerProxy.sol";
 import {Test, Vm} from "forge-std/Test.sol";
 
@@ -44,6 +45,42 @@ contract SemVerProxyTest is Test {
     function test_verifyInitialVersion() public {
         assertEq(semVerProxy.latestRelease(), latestRelease);
         _compareVersions(semVerProxy.latestVersion(), Version(0, 1, 0));
+    }
+
+    // Verify that writing to unsafe slots breaks storage.
+    function test_implementationBreaksStorage() public {
+        // This contract might write to 100th storage slot.
+        Breaking breaking = new Breaking();
+
+        vm.prank(address(proxyAdmin));
+        ISemVerProxy(address(semVerProxy)).releaseMinor(address(breaking), "");
+
+        Breaking implementation = Breaking(address(semVerProxy));
+
+        (uint64 major, uint64 minor, uint128 patch) = implementation
+            .latestVersion_();
+
+	// This will succeed, since {Breaking} contract
+	// will read from a storage slot already occupied
+	// by the {SemVerProxy}.
+        _compareVersions(
+            Version(major, minor, patch),
+            semVerProxy.latestVersion()
+        );
+
+	implementation.setVersion();
+	(major, minor, patch) = implementation
+            .latestVersion_();
+
+	// This will succeed again, because at this point
+	// the storage slot {100} has collided between
+	// {SemVerProxy} and {Breaking} contract, and
+	// {setVersion} call has ovrewritten {_latestVersion}
+	// storage variable of {SemVerProxy}.
+        _compareVersions(
+            Version(major, minor, patch),
+            semVerProxy.latestVersion()
+        );	
     }
 
     function testFuzz_subscribe(address caller) public {
@@ -195,7 +232,7 @@ contract SemVerProxyTest is Test {
     function testFuzz_multiVersioning(address[3] memory callers) public {
         address nonSubscribedCaller = address(3);
 
-	// Each caller in {callers} array has unique address.
+        // Each caller in {callers} array has unique address.
         vm.assume(
             callers[0] != callers[1] &&
                 callers[0] != callers[2] &&
