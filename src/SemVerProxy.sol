@@ -2,61 +2,79 @@
 pragma solidity ^0.8.28;
 
 import {TransparentUpgradeableProxy, ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ProxyAdmin} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {Versioning, Version, EncodedVersion} from "./lib/Versioning.sol";
 import {ISemVerProxy} from "./interfaces/ISemVerProxy.sol";
 import {Clients, Client} from "./lib/Clients.sol";
 
-// TODO: remove
-import {console} from "forge-std/console.sol";
-
-/* TODO: use 'Ownable' */
-
-/// @notice TODO: add description.
-// TODOs:
-// - Latest version is stored in a storage slot, specified in ERC-1967.
-// - References to ALL versions are stored in a runtime-determined storage slot
-//   inside a 'versions' mapping.
-// - Client's specific versions are stored inside 'client' mapping (if present).
+/**
+ * @title SemVerProxy
+ *
+ * @dev Though, {SemVerProxy} inherits {TransparentUpgradeableProxy}
+ *      it's not "transparent" since it declares 5 externally accessable functions:
+ *      [latestVersion, latestEncoded, latestRelease, subscribeToVersion, unsubscribeFromVersioning]
+ *      that might possibly clash if implementations declare functions with
+ *      the same signatures.
+ *
+ * @dev Upgrade functionality in this contract can be achieved via {release*} functions
+ *      callable only by the admin.
+ *
+ * @dev Users of this proxy can subscribe to using specific version of implementation
+ *      contract, via {subscribeToVersion} function. By default, if no subscription is
+ *      specified {_fallback} will delegate to the latest release.
+ *
+ * @dev Latest version is stored in a storage slot, specified in ERC-1967.
+ */
 contract SemVerProxy is TransparentUpgradeableProxy {
     /**
-     * TODO: add DESCRIPTION about 'using' derectives.
+     * @dev Since {store} and {obtainRelease} are methods
+     *      that should be applied to {mapping(EncodedVersion => address)}
+     *      we limit them exactly to this mapping type.
      */
     using {
         Versioning.store,
         Versioning.obtainRelease
     } for mapping(EncodedVersion => address);
-
+    /**
+     * @dev Incrementors and {encode} functions are limited
+     *      to be applied to {Version} struct.
+     */
     using {
         Versioning.incMajor,
         Versioning.incMinor,
         Versioning.incPatch,
         Versioning.encode
     } for Version;
-
+    /**
+     * @dev Subscription logic is limited to be
+     *      applied to {mapping(Client => address)} type.
+     */
     using {
         Clients.subscribe,
         Clients.unsubscribe,
         Clients.isSubscribed
     } for mapping(Client => address);
 
+    /***                   * EVENTS *                   ***/
     event Release(EncodedVersion indexed latestEncoded, address release);
     event ClientSubscribed(Client indexed client, Version indexed version);
     event ClientUnsubscribed(Client indexed client);
 
+    /***                   * STORAGE *                   ***/
     /**
-     * @dev Reserve 200 storage slots to be used in implementations.
-     * @notice Any 199+ slot inside implementation will overwrite
-     *         storage of this proxy.
+     * @dev Reserve 100 storage slots to be used in implementations.
+     * @notice Any 99+ slot inside implementation will overwrite
+     *         storage of this proxy,
+     *         Therefore, implementations can only safely use
+     *         slots between 0 and 99.
      */
-    uint256[200] private __gap;
+    uint256[100] private __gap;
 
-    /// @notice TODO:
+    /// @notice Stores SemVer-like latest version of the implemenation.
     Version internal _latestVersion;
 
-    /// @notice TODO:
+    /// @notice Stores addresses of every existing version.
     mapping(EncodedVersion => address) internal _releases;
-    /// @notice TODO:
+    /// @notice Points to releases to which clients are subscribed.
     mapping(Client => address) internal _subscribedClients;
 
     /**
@@ -78,7 +96,6 @@ contract SemVerProxy is TransparentUpgradeableProxy {
     }
 
     /**
-     * TODO: update this function!!
      * @dev If caller is the admin process the call internally,
      *      otherwise transparently fallback to the proxy behavior.
      */
@@ -94,8 +111,8 @@ contract SemVerProxy is TransparentUpgradeableProxy {
                 releaseFunc = releasePatch;
             } else {
                 /**
-                 * @notice Call to 'upgradeToAndCall' is prohibited as well
-                 *         as upgrades are made via 'release*' functions.
+                 * @notice Call to {upgradeToAndCall} is prohibited as well
+                 *         as upgrades are made via {release*} functions.
                  */
                 revert ProxyDeniedAdminAccess();
             }
@@ -109,6 +126,8 @@ contract SemVerProxy is TransparentUpgradeableProxy {
             super._fallback();
         }
     }
+
+    /***                   * VIEW FUNCTIONS *                   ***/
 
     /**
      * @notice Returns current latest version.
@@ -131,7 +150,7 @@ contract SemVerProxy is TransparentUpgradeableProxy {
         return _releases[latestEncoded()];
     }
 
-    /*~~~~~~~~~~~~~~~~~~~~~~ CLIENT ACTIONS ~~~~~~~~~~~~~~~~~~~~~~*/
+    /***                   * CLIENT ACTIONS *                   ***/
 
     /**
      * @notice Attaches implementation address for provided {version}
@@ -161,7 +180,7 @@ contract SemVerProxy is TransparentUpgradeableProxy {
         emit ClientUnsubscribed(client);
     }
 
-    /*~~~~~~~~~~~~~~~~~~~~~~ ADMIN ACTIONS ~~~~~~~~~~~~~~~~~~~~~~*/
+    /***                   * ADMIN ACTIONS *                   ***/
 
     /**
      * @notice Increments latest major version.
@@ -192,7 +211,7 @@ contract SemVerProxy is TransparentUpgradeableProxy {
         _setLatest(release, data);
     }
 
-    /*~~~~~~~~~~~~~~~~~~~~~~ INTERNALS ~~~~~~~~~~~~~~~~~~~~~~*/
+    /***                   * HELPERS *                   ***/
 
     /**
      * @notice Updates {_releases} map with a newly released address.
@@ -220,8 +239,6 @@ contract SemVerProxy is TransparentUpgradeableProxy {
         (bool subscribed, address release) = _subscribedClients.isSubscribed(
             client
         );
-        console.log("is client subscribed?", _subscribedClients[client]);
-        console.log("to release           ", release);
 
         return subscribed ? release : ERC1967Utils.getImplementation();
     }
