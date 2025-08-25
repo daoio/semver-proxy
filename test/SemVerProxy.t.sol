@@ -1,4 +1,4 @@
-pragma solidity ^0.8.28;
+pragma solidity 0.8.30;
 
 import {ProxyAdmin} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {Versioning, Version, EncodedVersion} from "../src/lib/Versioning.sol";
@@ -49,7 +49,7 @@ contract SemVerProxyTest is Test {
 
     // Verify that writing to unsafe slots breaks storage.
     function test_implementationBreaksStorage() public {
-        // This contract might write to 100th storage slot.
+        // This contract might write to 1_000th storage slot.
         Breaking breaking = new Breaking();
 
         vm.prank(address(proxyAdmin));
@@ -60,27 +60,26 @@ contract SemVerProxyTest is Test {
         (uint64 major, uint64 minor, uint128 patch) = implementation
             .latestVersion_();
 
-	// This will succeed, since {Breaking} contract
-	// will read from a storage slot already occupied
-	// by the {SemVerProxy}.
+        // This will succeed, since {Breaking} contract
+        // will read from a storage slot already occupied
+        // by the {SemVerProxy}.
         _compareVersions(
             Version(major, minor, patch),
             semVerProxy.latestVersion()
         );
 
-	implementation.setVersion();
-	(major, minor, patch) = implementation
-            .latestVersion_();
+        implementation.setVersion();
+        (major, minor, patch) = implementation.latestVersion_();
 
-	// This will succeed again, because at this point
-	// the storage slot {100} has collided between
-	// {SemVerProxy} and {Breaking} contract, and
-	// {setVersion} call has ovrewritten {_latestVersion}
-	// storage variable of {SemVerProxy}.
+        // This will succeed again, because at this point
+        // the storage slot {1_000} has collided between
+        // {SemVerProxy} and {Breaking} contract, and
+        // {setVersion} call has ovrewritten {_latestVersion}
+        // storage variable of {SemVerProxy}.
         _compareVersions(
             Version(major, minor, patch),
             semVerProxy.latestVersion()
-        );	
+        );
     }
 
     function testFuzz_subscribe(address caller) public {
@@ -292,7 +291,10 @@ contract SemVerProxyTest is Test {
         assertEq(implementation.x(), release2.ANOTHA_WILL_BE_X());
     }
 
-    function _compareVersions(Version memory v0, Version memory v1) internal {
+    function _compareVersions(
+        Version memory v0,
+        Version memory v1
+    ) internal pure {
         assertEq(
             EncodedVersion.unwrap(v0.encode()),
             EncodedVersion.unwrap(v1.encode())

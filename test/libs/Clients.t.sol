@@ -1,4 +1,4 @@
-pragma solidity ^0.8.28;
+pragma solidity 0.8.30;
 
 import {Client, Clients} from "../../src/lib/Clients.sol";
 import {Test} from "forge-std/Test.sol";

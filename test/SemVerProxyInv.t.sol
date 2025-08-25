@@ -1,4 +1,4 @@
-pragma solidity ^0.8.28;
+pragma solidity 0.8.30;
 
 import {ProxyAdmin} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {Versioning, Version, EncodedVersion} from "../src/lib/Versioning.sol";
@@ -7,7 +7,7 @@ import {X, Y, Z} from "./mocks/VersionedContract.sol";
 import {SemVerProxy} from "../src/SemVerProxy.sol";
 import {Test, Vm} from "forge-std/Test.sol";
 
-contract InvariantSemVerProxyTest is Test {
+contract SemVerProxyInv is Test {
     using {Versioning.encode} for Version;
 
     address latestRelease;

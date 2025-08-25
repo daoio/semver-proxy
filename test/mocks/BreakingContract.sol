@@ -1,9 +1,8 @@
-pragma solidity ^0.8.28;
+pragma solidity 0.8.30;
 
 import {Version} from "../../src/lib/Versioning.sol";
 
-contract Breaking {
-    uint256[100] private __gap;
+contract Breaking layout at 1_000 {
     Version public latestVersion_;
 
     function setVersion() external {
