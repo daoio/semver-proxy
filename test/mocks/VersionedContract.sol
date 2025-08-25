@@ -1,4 +1,4 @@
-pragma solidity ^0.8.28;
+pragma solidity 0.8.30;
 
 contract X {
     uint256 public constant WILL_BE_X = 228;
