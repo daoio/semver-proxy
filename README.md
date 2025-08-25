@@ -12,30 +12,28 @@ forge test
 ```
 
 ## Storage layout of `SemVerProxy`
-`SemVerProxy` reserves storage slots **0 to 99** for implementation contracts by declaring a fixed-size array that occupies these slots:
-```solidity
-uint256[100] private __gap; // Reserves slots 0-99 for implementations
-```
-So, the storage layout of a proxy and an arbitrary implementation contract can be represented as follows:
+`SemVerProxy` stores variables in the storage, starting at slot 1000. Therefore, implementation contracts can safely use all storage slots except 1000, 1001, and 1002.
+So, the storage layout of the proxy and an arbitrary implementation contract can be represented as follows:
 ```text
 Proxy storage layout:
-┌─────────────┐
-│ Slot 0-99   │ ← `__gap` placeholder (reserved for implementations)
-├─────────────┤
-│ Slot 100    │ ← `_latestVersion`
-│ Slot 101    │ ← Other state variables
-│ ...         │
-└─────────────┘
+┌───────────────┐
+│ Slot 0-1000   │ ← empty
+├───────────────┤
+│ Slot 1000     │ ← `_latestVersion`
+│ Slot 1001     │ ← `_releases` mapping
+│ Slot 1002     │ ← `_subscribedClients` mapping
+│ ...           │
+└───────────────┘
 
-Implementation storage example:
-┌─────────────┐
-│ Slot 0      │ ← Implementation's first state variable
-│ Slot 1      │ ← Implementation's second state variable
-│ ...         │
-│ Slot 99     │ ← Last available slot for implementation
-├─────────────┤
-| Slot 100    | ← ⚠️ This will collide with proxy's storage
-└─────────────┘
+Implementation's storage example:
+┌───────────────┐
+│ Slot 0        │ ← Implementation's 1st state variable
+│ Slot 1        │ ← Implementation's 2nd state variable
+│ ...           │
+│ Slot 999      │ ← Implementation's 998th state variable
+├───────────────┤
+| Slot 1000     │ ← ⚠️ This will collide with proxy's storage
+└───────────────┘
 ```
 
 ## Releases and Versioning
@@ -91,5 +89,5 @@ function unsubscribeFromVersioning() external;
 ```
 
 ## Security Considerations
-- Since `SemVerProxy` only reserves slots from 0 to 99, any 100+ slot of the implementation will collide with proxy.
+- Storing variables in implementation's storage at slots 1000, 1001, 1002 will collide with the proxy's storage.
 - `SemVerProxy` has externally accessable function, therefore there's a possibiliy of function selector clash (i.e., if implementation defines functions that have the same signature as external functions of `SemVerProxy`).
