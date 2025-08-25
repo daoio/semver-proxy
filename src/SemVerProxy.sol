@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.30;
 
 import {TransparentUpgradeableProxy, ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {Versioning, Version, EncodedVersion} from "./lib/Versioning.sol";
@@ -23,31 +23,22 @@ import {Clients, Client} from "./lib/Clients.sol";
  *      specified {_fallback} will delegate to the latest release.
  *
  * @dev Latest version is stored in a storage slot, specified in ERC-1967.
+ *
+ * @dev Storage variables are stored starting from 1000th slot.
  */
-contract SemVerProxy is TransparentUpgradeableProxy {
-    /**
-     * @dev Since {store} and {obtainRelease} are methods
-     *      that should be applied to {mapping(EncodedVersion => address)}
-     *      we limit them exactly to this mapping type.
-     */
+contract SemVerProxy is TransparentUpgradeableProxy layout at 1_000 {
     using {
         Versioning.store,
         Versioning.obtainRelease
     } for mapping(EncodedVersion => address);
-    /**
-     * @dev Incrementors and {encode} functions are limited
-     *      to be applied to {Version} struct.
-     */
+    
     using {
         Versioning.incMajor,
         Versioning.incMinor,
         Versioning.incPatch,
         Versioning.encode
     } for Version;
-    /**
-     * @dev Subscription logic is limited to be
-     *      applied to {mapping(Client => address)} type.
-     */
+    
     using {
         Clients.subscribe,
         Clients.unsubscribe,
@@ -60,16 +51,9 @@ contract SemVerProxy is TransparentUpgradeableProxy {
     event ClientUnsubscribed(Client indexed client);
 
     /***                   * STORAGE *                   ***/
-    /**
-     * @dev Reserve 100 storage slots to be used in implementations.
-     * @notice Any 99+ slot inside implementation will overwrite
-     *         storage of this proxy,
-     *         Therefore, implementations can only safely use
-     *         slots between 0 and 99.
-     */
-    uint256[100] private __gap;
 
     /// @notice Stores SemVer-like latest version of the implemenation.
+    /// @dev {_latestVersion} is stored in storage slot [1_000].
     Version internal _latestVersion;
 
     /// @notice Stores addresses of every existing version.
